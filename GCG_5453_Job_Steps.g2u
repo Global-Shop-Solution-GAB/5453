@@ -1,0 +1,229 @@
+Program.Sub.Preflight.Start
+v.Global.sLog.Declare
+v.Global.sFile.Declare
+f.Intrinsic.Control.CallSub("Check_And_Create_Custom_Folder")
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+	v.Local.sNow.Declare	
+	v.Local.iMinuteUnload.Declare
+	
+	'This script is called everyday and unloaded at 11pm
+	F.Intrinsic.Control.Do			
+		'Check the time and see if it is past 11:00 pm 
+		f.Intrinsic.String.Format(v.Ambient.Now,"HHMMSS",v.Local.sNow)
+		v.Local.iMinuteUnload.Set(v.Local.sNow.left4)
+		f.Intrinsic.Control.If(v.Local.iMinuteUnload,>=,2320)
+			f.Intrinsic.Control.CallSub("Unload")
+		F.Intrinsic.Control.Else
+			f.Intrinsic.Control.CallSub("Process_a_Round")			
+			F.Intrinsic.UI.Sleep(1800)			
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.Loop	
+
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: GCG_5453_Job_Steps.g2u {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	f.Intrinsic.Control.CallSub("Write_Log","sError",v.Local.sError)
+	f.Intrinsic.Control.CallSub("Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+
+Program.Sub.Process_a_Round.Start
+F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+
+	f.Intrinsic.String.Build("{0}: Start Processing Job Steps...",v.Ambient.Now,v.Global.sLog)
+	f.Intrinsic.Control.CallSub("Process")
+	f.Intrinsic.String.Build("{0}{1}{2}: End Processing",v.Global.sLog,v.Ambient.NewLine,v.Ambient.Now,v.Global.sLog)
+	f.Intrinsic.Control.CallSub("Write_Log","sError","")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: GCG_5453_Job_Steps.g2u {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	f.Intrinsic.Control.CallSub("Write_Log","sError",v.Local.sError)
+	f.Intrinsic.Control.CallSub("Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.Process_a_Round.End
+
+Program.Sub.Write_Log.Start
+F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+	v.Local.bEx.Declare
+	v.Local.sCurrentContent.Declare
+	v.Local.sFile.Declare
+
+	f.Intrinsic.Control.If(v.Args.sError.Trim,<>,"")
+		f.Intrinsic.String.Build("{0}{1}{2}",v.Global.sLog,v.Ambient.NewLine,v.Args.sError,v.Global.sLog)
+	f.Intrinsic.Control.EndIf
+	'Check file and write log
+	f.Intrinsic.File.Exists(v.Global.sFile,v.Local.bEx)
+	f.Intrinsic.Control.If(v.Local.bEx)
+		f.Intrinsic.File.File2String(v.Global.sFile,v.Local.sCurrentContent)
+		f.Intrinsic.String.Build("{0}{1}{2}",v.Local.sCurrentContent,v.Ambient.NewLine,v.Global.sLog,v.Global.sLog)
+	f.Intrinsic.Control.EndIf
+	f.Intrinsic.File.String2File(v.Global.sFile,v.Global.sLog)		
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: GCG_5453_Job_Steps.g2u {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	f.Intrinsic.String.Build("{0}{1}{2}",v.Global.sLog,v.Ambient.NewLine,v.Local.sError,v.Global.sLog)
+	f.Intrinsic.String.Build("{0}\Custom\5453\{1}\GAB Log\{2}_WriteLogError.txt",v.Caller.GlobalDir,v.Caller.CompanyCode,v.Ambient.Now.FormatYYYYMMDDHHNNSS,v.Local.sFile)
+	f.Intrinsic.File.String2File(v.Local.sFile,v.Global.sLog)
+	f.Intrinsic.Control.CallSub("Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.Write_Log.End
+
+Program.Sub.UnLoad.Start
+f.Intrinsic.Control.Try
+	v.Local.sError.Declare
+	v.Local.sSQL.Declare
+	v.Local.bEx.Declare
+	
+	'Close connection
+	F.Intrinsic.Control.If(V.ODBC.conx.State,=,1)
+		F.ODBC.Connection!conx.close
+	F.Intrinsic.Control.EndIf
+	
+	'End
+	f.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.End	
+F.Intrinsic.Control.EndTry
+Program.Sub.UnLoad.End
+
+Program.Sub.Check_And_Create_Custom_Folder.Start
+f.Intrinsic.Control.Try
+	v.Local.sError.Declare
+	v.Local.bExist.Declare
+	v.Local.sFile.Declare
+	v.Local.sDir.Declare
+	
+	f.Intrinsic.String.Build("{0}\Custom",v.Caller.GlobalDir,v.Local.sDir)
+	f.Intrinsic.File.DirExists(v.Local.sDir,v.Local.bExist)
+	f.Intrinsic.Control.If(v.Local.bExist.Not)
+		f.Intrinsic.File.CreateDir(v.Local.sDir)
+	f.Intrinsic.Control.EndIf
+	
+	f.Intrinsic.String.Build("{0}\Custom\5453",v.Caller.GlobalDir,v.Local.sDir)
+	f.Intrinsic.File.DirExists(v.Local.sDir,v.Local.bExist)
+	f.Intrinsic.Control.If(v.Local.bExist.Not)
+		f.Intrinsic.File.CreateDir(v.Local.sDir)
+	f.Intrinsic.Control.EndIf
+	
+	f.Intrinsic.String.Build("{0}\Custom\5453\{1}",v.Caller.GlobalDir,v.Caller.CompanyCode,v.Local.sDir)
+	f.Intrinsic.File.DirExists(v.Local.sDir,v.Local.bExist)
+	f.Intrinsic.Control.If(v.Local.bExist.Not)
+		f.Intrinsic.File.CreateDir(v.Local.sDir)
+	f.Intrinsic.Control.EndIf	
+	
+	f.Intrinsic.String.Build("{0}\Custom\5453\{1}\GAB Log",v.Caller.GlobalDir,v.Caller.CompanyCode,v.Local.sDir)
+	f.Intrinsic.File.DirExists(v.Local.sDir,v.Local.bExist)
+	f.Intrinsic.Control.If(v.Local.bExist.Not)
+		f.Intrinsic.File.CreateDir(v.Local.sDir)
+	f.Intrinsic.Control.EndIf		
+	
+	f.Intrinsic.String.Build("{0}\Custom\5453\{1}\GAB Log\{2}.txt",v.Caller.GlobalDir,v.Caller.CompanyCode,v.Ambient.Date.FormatYYYYMMDD,v.Global.sFile)
+	
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: GCG_5453_Job_Steps.g2u {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	f.Intrinsic.String.Build("{0}{1}{2}",v.Global.sLog,v.Ambient.NewLine,v.Local.sError,v.Global.sLog)
+	f.Intrinsic.String.Build("{0}\{1}_{2}_Custom5453FolderError.txt",v.Caller.FilesDir,v.Caller.CompanyCode,v.Ambient.Now.FormatYYYYMMDDHHNNSS,v.Local.sFile)
+	f.Intrinsic.File.String2File(v.Local.sFile,v.Global.sLog)
+	f.Intrinsic.Control.End
+F.Intrinsic.Control.EndTry	
+Program.Sub.Check_And_Create_Custom_Folder.End
+
+Program.Sub.Process.Start
+F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+	v.Local.iCnt.Declare
+	v.Local.sRet.Declare
+	v.Local.sFilter.Declare
+	v.Local.sSQL.Declare
+	v.Local.sJobSteps.Declare
+	v.Local.sNow.Declare
+	v.Local.bEx.Declare
+	v.Local.dDateStart.Declare
+	
+	v.Local.sNow.Set(v.Ambient.Now.FormatYYYYMMDDHHNNSS)
+	
+	f.ODBC.Connection!conx.OpenCompanyConnection(180)
+	
+	'Check database table
+	F.ODBC.Connection!conx.TableExists("GCG_5453_Job_Steps",V.Local.bEx)
+	F.Intrinsic.Control.If(V.Local.bEx.Not)
+		F.ODBC.Connection!conx.Execute("CREATE TABLE GCG_5453_Job_Steps(Job CHAR(6),Suffix CHAR(3),Steps VARCHAR(3000),DateTimeUp CHAR(14));")		
+		F.ODBC.Connection!conx.Execute("CREATE INDEX GCG_545300  ON GCG_5453_Job_Steps ( Job, Suffix );")
+		F.ODBC.Connection!conx.Execute("CREATE INDEX GCG_545301  ON GCG_5453_Job_Steps ( DateTimeUp );")
+	F.Intrinsic.Control.EndIf	
+	
+	f.Intrinsic.Control.If(v.DataTable.Steps.Exists)
+		f.Data.DataTable.Close("Steps")
+	f.Intrinsic.Control.EndIf
+	
+	f.Data.DataTable.CreateFromSQL("Steps","conx","select o.Job,o.Suffix,o.Seq, o.Job + '-' + o.Suffix + '-' + o.Seq as JobSuffixSeq,o.Part,Flag_closed,o.DATE_START,LMO from v_Job_header h left join v_Job_Operations o on h.job = o.job and h.suffix = o.suffix where h.Date_closed = '1900-01-01' and LMO in ('L','O') and o.Seq < '990000'",True)
+	f.Data.DataTable.AddExpressionColumn("Steps","Step","String","IIF(Flag_Closed = 'Y','#' + trim(Part),trim(Part))")
+	f.Data.DataView.Create("Steps","dvSteps",22,"","job,suffix")
+	f.Intrinsic.Control.If(v.DataTable.JobSuf.Exists)
+		f.Data.DataTable.Close("JobSuf")
+	f.Intrinsic.Control.EndIf
+	f.Data.DataView.ToDataTableDistinct("Steps","dvSteps","JobSuf","Job*!*Suffix",True)
+	
+	f.Intrinsic.Control.If(v.DataTable.JobSteps.Exists)
+		f.Data.DataTable.Close("JobSteps")
+	f.Intrinsic.Control.EndIf
+	f.Data.DataTable.Create("JobSteps",True)
+	f.Data.DataTable.AddColumn("JobSteps","Job","String","")
+	f.Data.DataTable.AddColumn("JobSteps","Suffix","String","")
+	f.Data.DataTable.AddColumn("JobSteps","Steps","String","")	
+	f.Data.DataTable.AddColumn("JobSteps","Date_Start","Date","01-01-1900")
+	
+	f.Intrinsic.Control.For(v.Local.iCnt,0,v.DataTable.JobSuf.RowCount--,1)
+	
+		f.Intrinsic.String.Build("Job = '{0}' and Suffix = '{1}'",v.DataTable.JobSuf(v.Local.iCnt).Job!FieldValString,v.DataTable.JobSuf(v.Local.iCnt).Suffix!FieldValString,v.Local.sFilter)
+		f.Data.DataView.SetFilter("Steps","dvSteps",v.Local.sFilter)
+		f.Data.DataView.SetSort("Steps","dvSteps","Seq")
+		f.Data.DataView.ToString("Steps","dvSteps","Step",""," / ",v.Local.sJobSteps)
+	
+		f.Intrinsic.String.Build("Job = '{0}' and Suffix = '{1}' and LMO = 'L'",v.DataTable.JobSuf(v.Local.iCnt).Job!FieldValString,v.DataTable.JobSuf(v.Local.iCnt).Suffix!FieldValString,v.Local.sFilter)
+		f.Data.DataView.SetFilter("Steps","dvSteps",v.Local.sFilter)
+		f.Data.DataView.SetSort("Steps","dvSteps","Seq")
+		f.Intrinsic.Control.If(v.DataView.Steps!dvSteps.RowCount,>,0)
+			v.Local.dDateStart.Set(v.DataView.Steps!dvSteps(0).Date_Start!FieldValString)
+		f.Intrinsic.Control.Else
+			v.Local.dDateStart.Set("01/01/1900")
+		f.Intrinsic.Control.EndIf		
+		
+		'Add record to table JobSteps
+		f.Data.DataTable.AddRow("JobSteps","Job",v.DataTable.JobSuf(v.Local.iCnt).Job!FieldValString,"Suffix",v.DataTable.JobSuf(v.Local.iCnt).Suffix!FieldValString,"Steps",v.Local.sJobSteps,"Date_Start",v.Local.dDateStart)
+
+	f.Intrinsic.Control.Next(v.Local.iCnt)
+	
+	f.Data.DataTable.AddExpressionColumn("JobSteps","DateTimeUp","String",v.Local.sNow)
+	
+	'Save the number of records to be saved
+	f.ODBC.Connection!conx.ExecuteAndReturn("Select OptionValue from GCG_5453_Opt where OptionType = 'NumOfRec'",v.Local.sRet)
+	F.Intrinsic.Control.If(V.Ambient.ExecuteAndReturnEOF)
+		f.Intrinsic.String.Build("Insert into GCG_5453_Opt (OptionType,OptionValue) values ('NumOfRec','{0}')",v.DataTable.JobSteps.RowCount,v.Local.sSQL)
+	f.Intrinsic.Control.Else	
+		f.Intrinsic.String.Build("Update GCG_5453_Opt set OptionValue = '{0}' where OptionType = 'NumOfRec'",v.DataTable.JobSteps.RowCount,v.Local.sSQL)
+	F.Intrinsic.Control.EndIf
+	f.ODBC.Connection!conx.Execute(v.Local.sSQL)
+	
+	'Delete the custom table	
+	f.ODBC.Connection!conx.Execute("Delete from GCG_5453_Job_Steps")
+	
+	'SaveToDB records
+	f.Data.DataTable.SaveToDB("JobSteps","conx","GCG_5453_Job_Steps","",128)	
+	
+	f.ODBC.Connection!conx.Close
+	
+F.Intrinsic.Control.Catch
+	F.Intrinsic.String.Build("Project: GCG_5453_Job_Steps.g2u {0}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}GAB Version: {5}",V.Ambient.ScriptPath,V.Ambient.Newline,V.Ambient.CurrentSubroutine,V.Ambient.ErrorNumber,V.Ambient.ErrorDescription,V.Ambient.GABVersion,V.Local.sError)
+	f.Intrinsic.Control.CallSub("Write_Log","sError",v.Local.sError)
+	f.Intrinsic.Control.CallSub("Unload")
+F.Intrinsic.Control.EndTry
+Program.Sub.Process.End
